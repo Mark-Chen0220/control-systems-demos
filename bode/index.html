@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101821">
+  <title>Pole–Zero Bode Studio</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">↗</span><span>POLE–ZERO <strong>BODE STUDIO</strong></span></div>
+      <a class="sibling-link" href="../nyquist/">Open Nyquist plotter ↗</a>
+    </header>
+    <main>
+      <section class="hero">
+        <div><p class="eyebrow">INTERACTIVE CONTROL-SYSTEM LAB</p><h1>Build a transfer function.<br><em>See its Bode plots.</em></h1><p class="intro">Add any number of real poles and zeros, place each in the left or right half-plane, and watch magnitude and phase respond.</p></div>
+        <div class="formula-card"><span class="formula-label">YOUR TRANSFER FUNCTION</span><div id="formula" class="formula" aria-live="polite"></div><p>Each factor equals 1 at DC. Frequency is in hertz.</p></div>
+      </section>
+      <div class="workspace">
+        <aside class="controls">
+          <div class="section-head"><div><p class="eyebrow">01 / SETUP</p><h2>Parameters</h2></div><button type="button" id="reset" class="text-button">Reset example</button></div>
+          <div class="base-grid">
+            <label>Gain <span>K</span><input id="gain" type="number" step="any" value="1" aria-label="Gain K"></label>
+            <label>Start <span>Hz</span><input id="minHz" type="number" step="any" min="0" value="0.1" aria-label="Start frequency in hertz"></label>
+            <label>End <span>Hz</span><input id="maxHz" type="number" step="any" min="0" value="10000" aria-label="End frequency in hertz"></label>
+          </div>
+          <div class="divider"></div>
+          <div class="section-head"><div><p class="eyebrow">02 / FACTORS</p><h2>Poles &amp; zeros <span id="count" class="count">0</span></h2></div></div>
+          <p class="control-hint">A pole divides the transfer function; a zero multiplies it. “Order” repeats that factor.</p>
+          <div id="factorList" class="factor-list"></div>
+          <div class="add-actions"><button type="button" id="addPole" class="add-button">＋ Add pole</button><button type="button" id="addZero" class="add-button">＋ Add zero</button></div>
+          <div class="divider"></div>
+          <div class="presets"><span>TRY AN EXAMPLE</span><button type="button" data-preset="lowpass">RC low-pass</button><button type="button" data-preset="rhpZero">RHP zero</button><button type="button" data-preset="rhpPole">RHP pole</button></div>
+          <div id="errors" class="errors" role="alert" hidden></div>
+        </aside>
+        <section class="plots" aria-label="Bode plots">
+          <div class="plot-header"><div><p class="eyebrow">LIVE RESPONSE</p><h2>Bode plots</h2></div><span class="plot-tip">Move over a plot to inspect a frequency</span></div>
+          <div id="readout" class="readout" aria-live="polite"><div><span>FREQUENCY</span><strong id="readHz">—</strong></div><div><span>MAGNITUDE</span><strong id="readMag">—</strong></div><div><span>PHASE</span><strong id="readPhase">—</strong></div></div>
+          <div class="plot-panel"><div class="plot-title"><span class="dot mag-dot"></span><h3>Magnitude</h3><span>dB</span></div><svg id="magnitudePlot" role="img" aria-label="Bode magnitude plot"></svg></div>
+          <div class="plot-panel"><div class="plot-title"><span class="dot phase-dot"></span><h3>Phase</h3><span>degrees</span></div><svg id="phasePlot" role="img" aria-label="Bode phase plot"></svg></div>
+          <div class="insight"><div class="insight-icon">i</div><p><strong>Watch the phase:</strong> an RHP pole or zero has the same magnitude curve as its LHP counterpart at the same frequency, but its phase bends the other way. An RHP pole also represents a growing natural response (instability).</p></div>
+        </section>
+      </div>
+      <footer>Real-axis poles and zeros · Continuous-time transfer functions · Phase shown without wrapping</footer>
+    </main>
+  </div>
+  <script type="module" src="./app.mjs"></script>
+</body>
+</html>

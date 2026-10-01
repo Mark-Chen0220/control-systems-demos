@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f7f6f2">
+  <meta name="description" content="Plot the Nyquist curve of a transfer function in s, with positive and negative frequency branches.">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%231b3440'/%3E%3Cpath d='M10 33h44M32 10v44' stroke='%23a0b5b9' stroke-width='2'/%3E%3Cpath d='M16 42c7 4 11-15 23-17 8-1 8 8 5 11-4 4-11-2-8-7' fill='none' stroke='%23e5aa62' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E">
+  <title>Nyquist Plotter</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.mjs"></script>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">PIC / feedback analysis</p>
+        <h1>Nyquist Plotter</h1>
+      </div>
+      <p class="topbar-note">Enter a real-coefficient transfer function in <code>s</code>. The app evaluates it at <code>s = jω</code>. <a href="../bode/">Explore poles and zeros in the Bode plotter ↗</a></p>
+    </header>
+
+    <div class="workspace">
+      <aside class="controls" aria-label="Plot controls">
+        <form id="plot-form" novalidate>
+          <label class="field-label" for="expression">Transfer function</label>
+          <div class="expression-line"><span>G(s) =</span><textarea id="expression" rows="3" spellcheck="false" aria-describedby="syntax-help">1/(s^2 + 0.4*s + 1)</textarea></div>
+          <p id="syntax-help" class="field-help">Use <code>*</code> for multiplication and <code>^</code> for powers. Example: <code>10/(s*(s+2))</code></p>
+
+          <div class="preset-row" aria-label="Example functions">
+            <button type="button" class="preset" data-expression="1/(s+1)" data-low="0.001" data-high="100">RC low-pass</button>
+            <button type="button" class="preset" data-expression="1/(s^2 + 0.4*s + 1)" data-low="0.01" data-high="100">Damped pair</button>
+            <button type="button" class="preset" data-expression="10/(s*(s+2))" data-low="0.001" data-high="100">Integrator loop</button>
+            <button type="button" class="preset" data-expression="5*(1-s/10)/((s+1)*(s+5))" data-low="0.001" data-high="100">RHP zero</button>
+          </div>
+
+          <div class="section-rule"></div>
+          <p class="section-label">Frequency sweep</p>
+          <div class="input-pair">
+            <label>Start <span>Hz</span><input id="start-hz" type="number" value="0.01" min="0.000000001" step="any" inputmode="decimal"></label>
+            <label>Stop <span>Hz</span><input id="stop-hz" type="number" value="100" min="0.000000001" step="any" inputmode="decimal"></label>
+          </div>
+          <label class="samples-field">Samples per branch <input id="samples" type="number" value="700" min="80" max="3000" step="1" inputmode="numeric"></label>
+          <button class="plot-button" type="submit">Plot Nyquist curve <span aria-hidden="true">↗</span></button>
+          <p id="error" class="error" role="alert" hidden></p>
+        </form>
+        <div class="controls-foot">
+          <p><strong>Reading the plot</strong></p>
+          <p>The two colors trace positive and negative frequencies. Arrows show increasing <code>ω</code>. The cross marks <code>−1 + j0</code>.</p>
+          <p class="muted">Drag the plot to pan; scroll to zoom. A Nyquist plot alone does not determine closed-loop stability without the open-loop RHP pole count and the full contour.</p>
+        </div>
+      </aside>
+
+      <section class="plot-panel" aria-label="Nyquist plot">
+        <div class="plot-heading">
+          <div><p class="eyebrow">Complex plane</p><h2>G(jω)</h2></div>
+          <button id="fit-button" class="fit-button" type="button" title="Fit the curve in view">Fit view</button>
+        </div>
+        <div class="plot-wrap" id="plot-wrap">
+          <canvas id="plot" aria-label="Nyquist plot, real part on horizontal axis and imaginary part on vertical axis" role="img"></canvas>
+          <div id="tooltip" class="tooltip" hidden></div>
+        </div>
+        <div class="plot-footer">
+          <div class="legend"><span><i class="swatch positive"></i>ω &gt; 0</span><span><i class="swatch negative"></i>ω &lt; 0</span><span><i class="cross-key">×</i>−1 point</span></div>
+          <p id="plot-status" class="plot-status" aria-live="polite"></p>
+        </div>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

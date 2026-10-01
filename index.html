@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Interactive Bode and Nyquist plotters for learning poles, zeros, phase, and feedback stability.">
+  <title>Control Systems Demos · PIC</title>
+  <style>
+    :root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:#e8f3f0;background:#0d1b23;font-synthesis:none}*{box-sizing:border-box}body{margin:0}a{color:inherit}.page{max-width:1140px;margin:auto;padding:0 28px}.top{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #24414a;padding:23px 0}.brand{font-size:12px;letter-spacing:.18em;font-weight:800;color:#8fe0cb}.top a{font-size:12px;color:#9fb7bb;text-decoration:none}.top a:hover{color:#fff}.hero{padding:83px 0 60px;max-width:800px}.kicker{font-size:11px;letter-spacing:.22em;font-weight:800;color:#7bd4bf;text-transform:uppercase;margin:0 0 19px}.hero h1{font-size:clamp(39px,6.5vw,76px);letter-spacing:-.055em;line-height:1.05;margin:0}.hero h1 em{font-style:normal;color:#75d4bb}.hero p:last-child{color:#a8bdc1;line-height:1.65;font-size:17px;max-width:650px;margin:23px 0 0}.section-label{font-size:11px;letter-spacing:.2em;color:#7fabb0;font-weight:800;margin:0 0 18px}.cards{display:grid;grid-template-columns:1fr 1fr;gap:20px}.card{min-height:330px;display:flex;flex-direction:column;border:1px solid #31515a;background:linear-gradient(150deg,#183540,#132830);border-radius:18px;padding:31px;text-decoration:none;transition:transform .15s,border-color .15s}.card:hover,.card:focus-visible{transform:translateY(-3px);border-color:#8adcc7;outline:none}.card.orange{background:linear-gradient(150deg,#382e2b,#1d2b31);border-color:#66504a}.card.orange:hover,.card.orange:focus-visible{border-color:#e5b07a}.card .number{font-size:11px;letter-spacing:.16em;color:#88adad;font-weight:800}.card h2{font-size:31px;letter-spacing:-.04em;margin:38px 0 9px}.card p{color:#afc3c4;line-height:1.55;margin:0;max-width:440px}.card .action{margin-top:auto;padding-top:26px;font-size:13px;font-weight:800;color:#91e2ca}.card.orange .action{color:#efbd8b}.guide{margin:56px 0 65px;background:#f0f6f3;color:#1a353b;border-radius:18px;padding:30px}.guide h2{font-size:23px;letter-spacing:-.03em;margin:0 0 18px}.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}.steps strong{display:block;color:#258a77;margin-bottom:7px;font-size:12px;letter-spacing:.05em}.steps p{font-size:13px;line-height:1.6;color:#557076;margin:0}.note{border-top:1px solid #d1e1dc;margin-top:25px;padding-top:18px;color:#667d80;font-size:12px;line-height:1.5}footer{border-top:1px solid #24414a;color:#829da2;font-size:11px;line-height:1.5;padding:27px 0 35px}@media(max-width:720px){.page{padding:0 18px}.hero{padding:58px 0 42px}.hero p:last-child{font-size:15px}.cards,.steps{grid-template-columns:1fr}.card{min-height:285px}.card h2{margin-top:29px}.guide{padding:23px}.steps{gap:18px}}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="top"><span class="brand">PIC / CONTROL SYSTEMS</span><a href="https://github.com/Mark-Chen0220/control-systems-demos">View source on GitHub ↗</a></header>
+    <main>
+      <section class="hero"><p class="kicker">Two interactive learning tools</p><h1>Move the poles.<br><em>See the response.</em></h1><p>Use the Bode plot to see how each pole or zero changes gain and phase. Then enter a transfer function in the Nyquist plotter to see its path around the critical point.</p></section>
+      <p class="section-label">CHOOSE A DEMO</p>
+      <div class="cards">
+        <a class="card" href="./bode/"><span class="number">01 / BUILD FROM FACTORS</span><h2>Pole–Zero Bode Studio</h2><p>Add as many real LHP or RHP poles and zeros as you need. Change their corner frequencies and orders to see magnitude and unwrapped phase respond.</p><span class="action">Open Bode plotter →</span></a>
+        <a class="card orange" href="./nyquist/"><span class="number">02 / TRACE THE COMPLEX PLANE</span><h2>Nyquist Plotter</h2><p>Type a real-coefficient transfer function. Explore positive and negative frequency branches, the −1 point, and the shape of the response.</p><span class="action">Open Nyquist plotter →</span></a>
+      </div>
+      <section class="guide"><h2>A simple way to learn with both</h2><div class="steps"><div><strong>1 · START WITH BODE</strong><p>Place one LHP pole at 10 Hz. Change it to an RHP pole. The magnitude stays the same; the phase changes direction.</p></div><div><strong>2 · TRY A ZERO</strong><p>Repeat with a zero. An RHP zero adds rising magnitude while its phase falls. This differs from an RHP pole, which is an unstable mode.</p></div><div><strong>3 · OPEN NYQUIST</strong><p>Enter a transfer function and watch its complex response. Try the built-in examples, including the RHP-zero example.</p></div></div><div class="note">For stability, the Nyquist curve must be interpreted with the loop definition and the number of open-loop RHP poles. A plot alone is not a complete stability verdict.</div></section>
+    </main>
+    <footer>Built for learning PIC feedback concepts. These are continuous-time, real-coefficient demonstrations.</footer>
+  </div>
+</body>
+</html>
