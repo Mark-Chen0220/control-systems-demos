@@ -1,0 +1,174 @@
+"""Local, dependency-free second-order-system teaching app.
+
+Run: python natural_frequency_explorer.py
+The app opens in a browser and is served only on 127.0.0.1.
+"""
+
+from __future__ import annotations
+
+import argparse
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import json
+import math
+import webbrowser
+from urllib.parse import parse_qs, urlparse
+
+
+def clamp(value: float, low: float, high: float) -> float:
+    return max(low, min(high, value))
+
+
+def step_response(t: float, zeta: float, omega_n: float) -> float:
+    """Unit-step output for H(s)=wn²/(s²+2*zeta*wn*s+wn²)."""
+    if zeta < 1:
+        beta = math.sqrt(1 - zeta * zeta)
+        wd = omega_n * beta
+        return 1 - math.exp(-zeta * omega_n * t) * (
+            math.cos(wd * t) + zeta / beta * math.sin(wd * t)
+        )
+    if zeta == 1:
+        return 1 - math.exp(-omega_n * t) * (1 + omega_n * t)
+    root = math.sqrt(zeta * zeta - 1)
+    r1 = -omega_n * (zeta - root)
+    r2 = -omega_n * (zeta + root)
+    return 1 + (r2 * math.exp(r1 * t) - r1 * math.exp(r2 * t)) / (r1 - r2)
+
+
+def model(zeta: float, omega_n: float, duration: float) -> dict:
+    """Calculate pole positions, derived quantities, and a plotted time series."""
+    zeta = clamp(zeta, 0, 2)
+    omega_n = clamp(omega_n, 0.5, 10)
+    duration = clamp(duration, 2, 30)
+    alpha = zeta * omega_n  # Positive decay rate; the pole real part is -alpha.
+    if zeta < 1:
+        omega_d = omega_n * math.sqrt(1 - zeta * zeta)
+        poles = [[-alpha, omega_d], [-alpha, -omega_d]]
+        regime = "Undamped" if zeta == 0 else "Underdamped"
+        theta = math.degrees(math.acos(zeta))
+        overshoot = math.exp(-math.pi * zeta / math.sqrt(1 - zeta * zeta)) * 100
+        period = 2 * math.pi / omega_d
+        settling = 4 / alpha if alpha > 0 else None  # Standard 2% estimate.
+    elif zeta == 1:
+        omega_d = theta = period = settling = None
+        poles = [[-omega_n, 0], [-omega_n, 0]]
+        regime = "Critically damped"
+        overshoot = 0
+    else:
+        omega_d = theta = period = settling = None
+        root = math.sqrt(zeta * zeta - 1)
+        poles = [[-omega_n * (zeta - root), 0],
+                 [-omega_n * (zeta + root), 0]]
+        regime = "Overdamped"
+        overshoot = 0
+    count = 900
+    response = [[duration * i / (count - 1),
+                 step_response(duration * i / (count - 1), zeta, omega_n)]
+                for i in range(count)]
+    return {
+        "zeta": zeta, "omega_n": omega_n, "duration": duration,
+        "alpha": alpha, "omega_d": omega_d, "poles": poles,
+        "regime": regime, "theta": theta, "overshoot": overshoot,
+        "period": period, "settling": settling, "response": response,
+    }
+
+
+PAGE = r'''<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Natural Frequency Explorer</title>
+<style>
+:root{--navy:#10243c;--ink:#19324a;--muted:#587087;--line:#dce6ed;--blue:#277eb5;--purple:#8467ba;--gold:#dc9e32;--red:#df5b59;--green:#21887b}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,"Segoe UI",Arial,sans-serif;background:#edf3f7;color:var(--ink)}
+.layout{display:grid;grid-template-columns:340px minmax(0,1fr);min-height:100vh}.side{background:var(--navy);color:#f5f9fb;padding:29px 25px;display:flex;flex-direction:column;gap:22px}.eyebrow{text-transform:uppercase;letter-spacing:.14em;color:#7fc9d1;font-size:11px;font-weight:800}.side h1{font-size:28px;line-height:1.14;letter-spacing:-.03em;margin:8px 0 10px}.side p{color:#b9cbda;line-height:1.5;margin:0;font-size:14px}.control{padding-top:3px}.control-head{display:flex;justify-content:space-between;gap:10px;margin-bottom:12px;font-size:14px}.control output{font-variant-numeric:tabular-nums;color:#9ce6e2;font-weight:800}input[type=range]{width:100%;accent-color:#42b9c1;cursor:pointer}.endpoints{display:flex;justify-content:space-between;color:#8ea5b9;font-size:11px;margin-top:5px}.reset{background:#24415d;border:1px solid #54728c;color:#fff;border-radius:9px;padding:10px 14px;cursor:pointer;font-weight:700;text-align:left}.reset:hover{background:#31536f}.formula{margin-top:auto;border-top:1px solid #405771;padding-top:18px;color:#d8e5ec;font-size:14px;line-height:1.65}.formula code{font-family:Consolas,monospace;color:#a7e4e3;font-size:13px}.main{padding:25px;min-width:0;max-width:1500px;width:100%;margin:auto}.top{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:19px}.top h2{font-size:27px;letter-spacing:-.025em;margin:0 0 5px}.top p{margin:0;color:var(--muted);font-size:14px}.badge{padding:8px 13px;border-radius:30px;background:#dff5ef;color:#18755d;font-weight:800;font-size:12px;white-space:nowrap}.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin-bottom:15px}.card,.chart,.note{background:white;border:1px solid #dce6ed;border-radius:13px;box-shadow:0 2px 7px #18344f0b}.card{padding:16px;min-height:85px}.card .label{font-size:12px;color:var(--muted);font-weight:700}.card .value{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:7px}.card .unit{font-size:12px;font-weight:500;color:var(--muted)}.charts{display:grid;grid-template-columns:1fr 1fr;gap:15px}.chart{padding:16px 16px 10px;min-width:0}.chart h3{margin:0 0 5px;font-size:17px}.chart p{margin:0;color:var(--muted);font-size:12px;line-height:1.4}.chart svg{display:block;width:100%;height:auto;margin-top:8px}.note{margin-top:15px;padding:16px 20px;display:flex;gap:14px;align-items:start}.note .icon{font-size:19px}.note strong{display:block;margin-bottom:5px}.note p{margin:0;color:var(--muted);line-height:1.5;font-size:14px}.details{margin-top:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.detail{font-size:13px;color:var(--muted)}.detail b{color:var(--ink);font-variant-numeric:tabular-nums}.legend{display:flex;gap:15px;flex-wrap:wrap;padding:2px 0 0;color:var(--muted);font-size:11px}.swatch{display:inline-block;width:13px;height:3px;vertical-align:middle;margin-right:5px;border-radius:3px}
+@media(max-width:1400px){.charts{grid-template-columns:1fr}}
+@media(max-width:1050px){.cards{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:700px){.layout{display:block}.side{gap:15px}.main{padding:16px}.top{display:block}.badge{display:inline-block;margin-top:12px}.details{grid-template-columns:1fr 1fr}}
+</style></head>
+<body><div class="layout"><aside class="side">
+<div><div class="eyebrow">Interactive control systems</div><h1>Natural Frequency Explorer</h1><p>Move the sliders to connect pole geometry with the unit-step response.</p></div>
+<div class="control"><div class="control-head"><label for="zeta">Damping ratio <i>ζ</i></label><output id="zeta-value">0.35</output></div><input id="zeta" type="range" min="0" max="2" step="0.01" value="0.35"><div class="endpoints"><span>0 · undamped</span><span>1 · critical</span><span>2 · overdamped</span></div></div>
+<div class="control"><div class="control-head"><label for="omega">Natural frequency <i>ωₙ</i></label><output id="omega-value">4.00 rad/s</output></div><input id="omega" type="range" min="0.5" max="10" step="0.1" value="4"><div class="endpoints"><span>0.5 rad/s</span><span>10 rad/s</span></div></div>
+<div class="control"><div class="control-head"><label for="duration">Time window</label><output id="duration-value">10.0 s</output></div><input id="duration" type="range" min="2" max="30" step="0.5" value="10"><div class="endpoints"><span>2 s</span><span>30 s</span></div></div>
+<button class="reset" id="reset">↺ &nbsp;Reset sliders</button>
+<div class="formula"><div class="eyebrow">System model</div><code>H(s) = ωₙ² / (s² + 2ζωₙs + ωₙ²)</code><br>Unit-step input · zero initial conditions</div>
+</aside><main class="main"><div class="top"><div><h2>Poles shape the response</h2><p>Drag a slider and compare the s-plane with the output below.</p></div><span class="badge" id="regime">Underdamped</span></div>
+<div class="cards"><div class="card"><div class="label">Natural frequency ωₙ</div><div class="value" id="v-wn">—</div></div><div class="card"><div class="label">Decay rate ζωₙ</div><div class="value" id="v-alpha">—</div></div><div class="card"><div class="label">Damped rate ωd</div><div class="value" id="v-wd">—</div></div><div class="card"><div class="label">Step overshoot</div><div class="value" id="v-os">—</div></div></div>
+<div class="charts"><section class="chart"><h3>Characteristic roots · s-plane</h3><p>For complex poles, the blue radius is ωₙ, gold is ζωₙ, and purple is ωd.</p><svg id="pole-svg" viewBox="0 0 760 410" role="img" aria-label="Pole locations in the s-plane"></svg><div class="legend"><span><i class="swatch" style="background:var(--blue)"></i>ωₙ</span><span><i class="swatch" style="background:var(--gold)"></i>ζωₙ</span><span><i class="swatch" style="background:var(--purple)"></i>ωd</span><span><i class="swatch" style="background:var(--red)"></i>pole</span></div></section>
+<section class="chart"><h3>Unit-step response</h3><p>The dashed line marks the final value of 1. The response is computed from the selected poles.</p><svg id="step-svg" viewBox="0 0 760 410" role="img" aria-label="Unit-step response over time"></svg><div class="legend"><span><i class="swatch" style="background:var(--blue)"></i>output y(t)</span><span><i class="swatch" style="background:var(--gold)"></i>decay envelope</span><span><i class="swatch" style="background:#91a1b0"></i>final value</span></div></section></div>
+<div class="note"><span class="icon">◈</span><div><strong id="note-title">Geometry</strong><p id="note-body"></p></div></div><div class="details"><div>Pole locations: <b id="poles">—</b></div><div>Angle θ: <b id="theta">—</b></div><div>Oscillation period: <b id="period">—</b></div><div>2% settling estimate: <b id="settling">—</b></div></div>
+</main></div>
+<script>
+const $=id=>document.getElementById(id);const esc=x=>Number(x).toFixed(2);
+const sliders=['zeta','omega','duration'];let requestNumber=0;
+function line(x1,y1,x2,y2,color,width=1,dash=''){return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${width}" ${dash?`stroke-dasharray="${dash}"`:''}/>`}
+function txt(x,y,s,color='#587087',size=14,anchor='middle'){return `<text x="${x}" y="${y}" fill="${color}" font-size="${size}" text-anchor="${anchor}" font-family="Segoe UI,Arial,sans-serif">${s}</text>`}
+function cross(x,y){return `<path d="M${x-9},${y-9} L${x+9},${y+9} M${x+9},${y-9} L${x-9},${y+9}" stroke="#df5b59" stroke-width="4" stroke-linecap="round"/>`}
+function drawPoles(d){const W=760,H=410,L=55,R=31,T=28,B=46;const extent=Math.max(2,d.omega_n*1.4,Math.max(...d.poles.map(p=>Math.abs(p[0])))*1.18);const xmin=-extent,xmax=extent*.55,ymin=-extent*.75,ymax=extent*.75;const X=x=>L+(x-xmin)/(xmax-xmin)*(W-L-R),Y=y=>H-B-(y-ymin)/(ymax-ymin)*(H-T-B);let a='';for(let i=-4;i<=4;i++){let x=i*extent/4,y=i*extent*.75/4;a+=line(X(x),T,X(x),H-B,'#e7edf2')+line(L,Y(y),W-R,Y(y),'#e7edf2')}a+=line(L,Y(0),W-R,Y(0),'#738799',2)+line(X(0),T,X(0),H-B,'#738799',2);a+=txt(W-R,H-12,'Real part σ (rad/s)','#587087',13,'end')+txt(L,T-9,'Imaginary part jω','#587087',13,'start');
+if(d.zeta<1){let px=X(-d.alpha),py=Y(d.omega_d),oy=Y(0),ox=X(0);a+=line(ox,oy,px,py,'#277eb5',4)+line(ox,oy,px,Y(-d.omega_d),'#277eb5',2,'5,5')+line(ox,oy,px,oy,'#dc9e32',5)+line(px,oy,px,py,'#8467ba',4,'7,5')+line(px,py,ox,py,'#b8c8d3',1,'4,5');a+=txt((ox+px)/2+5,(oy+py)/2-11,'ωₙ','#277eb5',18)+txt((ox+px)/2,oy+24,'ζωₙ','#b97c13',16)+txt(px-17,(oy+py)/2,'ωd','#8467ba',16,'end');if(d.zeta>.06){const rad=35,ang=Math.acos(d.zeta);const ex=ox-rad*Math.cos(ang),ey=oy-rad*Math.sin(ang);a+=`<path d="M ${ox-rad} ${oy} A ${rad} ${rad} 0 0 1 ${ex} ${ey}" fill="none" stroke="#21887b" stroke-width="2"/>`+txt(ox-rad-10,oy-17,'θ','#21887b',16)}}else{a+=txt(L+12,T+26,'Real poles · no oscillation','#587087',15,'start')}
+d.poles.forEach((p,i)=>{if(i===0||p[0]!==d.poles[0][0]||p[1]!==d.poles[0][1])a+=cross(X(p[0]),Y(p[1]))});$('pole-svg').innerHTML=a}
+function drawStep(d){const W=760,H=410,L=58,R=24,T=27,B=48;const ys=d.response.map(p=>p[1]);const ymin=Math.min(-.12,Math.min(...ys)-.1),ymax=Math.max(1.2,Math.max(...ys)+.15);const X=x=>L+x/d.duration*(W-L-R),Y=y=>H-B-(y-ymin)/(ymax-ymin)*(H-T-B);let a='';for(let i=0;i<=5;i++){const x=L+i*(W-L-R)/5,y=T+i*(H-T-B)/5;a+=line(x,T,x,H-B,'#e7edf2')+line(L,y,W-R,y,'#e7edf2')}a+=line(L,Y(1),W-R,Y(1),'#91a1b0',2,'7,5')+txt(L-10,Y(1)+5,'1','#587087',13,'end');a+=line(L,H-B,W-R,H-B,'#738799',2)+line(L,T,L,H-B,'#738799',2);for(let i=0;i<=5;i++)a+=txt(L+i*(W-L-R)/5,H-20,(i*d.duration/5).toFixed(1),'#587087',12);a+=txt(W-R,H-5,'Time t (s)','#587087',13,'end')+txt(L,T-9,'Output y(t)','#587087',13,'start');
+if(d.zeta>0&&d.zeta<1){const norm=1/Math.sqrt(1-d.zeta*d.zeta);for(const sign of [-1,1]){let pts=[];for(let i=0;i<d.response.length;i+=3){const t=d.response[i][0];pts.push(`${X(t).toFixed(1)},${Y(1+sign*norm*Math.exp(-d.alpha*t)).toFixed(1)}`)}a+=`<polyline points="${pts.join(' ')}" fill="none" stroke="#dc9e32" stroke-width="1.5" stroke-dasharray="4,5" opacity=".85"/>`}}
+const pts=d.response.map(p=>`${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join(' ');a+=`<polyline points="${pts}" fill="none" stroke="#277eb5" stroke-width="3" stroke-linejoin="round"/>`;$('step-svg').innerHTML=a}
+function display(d){$('regime').textContent=d.regime;$('regime').style.background=d.zeta>=1?'#e9e8f7':'#dff5ef';$('regime').style.color=d.zeta>=1?'#6754a0':'#18755d';$('v-wn').innerHTML=esc(d.omega_n)+' <span class="unit">rad/s</span>';$('v-alpha').innerHTML=esc(d.alpha)+' <span class="unit">rad/s</span>';$('v-wd').innerHTML=d.omega_d===null?'—':esc(d.omega_d)+' <span class="unit">rad/s</span>';$('v-os').innerHTML=esc(d.overshoot)+' <span class="unit">%</span>';$('poles').textContent=d.poles.map(p=>`${esc(p[0])}${p[1]>=0?'+':''}${esc(p[1])}j`).join(' , ');$('theta').textContent=d.theta===null?'—':d.theta.toFixed(1)+'°';$('period').textContent=d.period===null?'—':d.period.toFixed(2)+' s';$('settling').textContent=d.settling===null?'—':d.settling.toFixed(2)+' s';
+let title,body;if(d.zeta===0){title='Undamped motion';body='The poles sit on the imaginary axis. The response keeps oscillating, and the damped angular rate equals the natural frequency.'}else if(d.zeta<1){title='The pole triangle';body='The radial distance to either pole is ωₙ. Its horizontal component is ζωₙ and its vertical component is ωd = ωₙ√(1−ζ²). The angle from the negative real axis satisfies ζ = cos θ. The pole real part is −ζωₙ.'}else if(d.zeta===1){title='Critical damping';body='The two poles meet at −ωₙ. The response reaches its final value without oscillating; the complex-pole triangle no longer applies.'}else{title='Overdamping';body='Both poles are real and negative. There is no oscillation, so neither ωd nor the complex-pole triangle applies.'}$('note-title').textContent=title;$('note-body').textContent=body;drawPoles(d);drawStep(d)}
+async function update(){const id=++requestNumber;const z=+$('zeta').value,w=+$('omega').value,t=+$('duration').value;$('zeta-value').textContent=z.toFixed(2);$('omega-value').textContent=w.toFixed(2)+' rad/s';$('duration-value').textContent=t.toFixed(1)+' s';try{const res=await fetch(`/api?zeta=${z}&omega=${w}&duration=${t}`);if(!res.ok)throw Error('HTTP '+res.status);const data=await res.json();if(id===requestNumber)display(data)}catch(e){$('note-title').textContent='Could not update';$('note-body').textContent=String(e)}}
+sliders.forEach(id=>$(id).addEventListener('input',update));$('reset').addEventListener('click',()=>{$('zeta').value=.35;$('omega').value=4;$('duration').value=10;update()});update();
+</script></body></html>'''
+
+
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self) -> None:
+        parsed = urlparse(self.path)
+        if parsed.path == "/":
+            body = PAGE.encode("utf-8")
+            mime = "text/html; charset=utf-8"
+        elif parsed.path == "/api":
+            try:
+                query = parse_qs(parsed.query)
+                zeta = float(query.get("zeta", ["0.35"])[0])
+                omega = float(query.get("omega", ["4"])[0])
+                duration = float(query.get("duration", ["10"])[0])
+                if not all(map(math.isfinite, (zeta, omega, duration))):
+                    raise ValueError("Values must be finite")
+                body = json.dumps(model(zeta, omega, duration),
+                                  allow_nan=False).encode("utf-8")
+                mime = "application/json; charset=utf-8"
+            except (ValueError, OverflowError):
+                self.send_error(400, "Invalid numeric parameter")
+                return
+        else:
+            self.send_error(404)
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", mime)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, format: str, *args: object) -> None:
+        return  # Quiet repeated requests while a slider moves.
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--port", type=int, default=0,
+                        help="Local port (default: choose an available port)")
+    parser.add_argument("--no-browser", action="store_true",
+                        help="Print the URL without opening a browser")
+    args = parser.parse_args()
+    server = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
+    url = f"http://127.0.0.1:{server.server_port}/"
+    print(f"Natural Frequency Explorer: {url}", flush=True)
+    print("Press Ctrl+C to stop.", flush=True)
+    if not args.no_browser:
+        webbrowser.open(url)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.server_close()
+
+
+if __name__ == "__main__":
+    main()

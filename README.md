@@ -1,14 +1,17 @@
-# Control systems demos
+# Control Systems Demos
 
-Two browser-only teaching tools for PIC and feedback analysis. No account, data upload, or build step is required to use the demos.
+Interactive, self-contained teaching demos for control systems.
 
-**[Open the GitHub Pages site](https://mark-chen0220.github.io/control-systems-demos/)**
+## Local preview
 
-- [Pole–Zero Bode Studio](https://mark-chen0220.github.io/control-systems-demos/bode/): add real LHP/RHP poles and zeros and compare magnitude and phase.
-- [Nyquist Plotter](https://mark-chen0220.github.io/control-systems-demos/nyquist/): enter a real-coefficient transfer function and inspect its Nyquist curve.
+Run `python build_site.py`, then `python -m http.server 8000` and open `http://127.0.0.1:8000/`.
 
-The site is published from the `main` branch root with GitHub Pages. `index.html` is the guide and each demo is in its own folder. The original app sources are maintained separately in the PIC workspace; this repository contains the static site copies.
+The original Python version of the natural-frequency demo is in `natural_frequency_explorer.py`. Run it with `python natural_frequency_explorer.py`.
 
-## Notes
+## Publishing
 
-The Bode tool uses factors normalized to one at DC and shows unwrapped phase. The Nyquist tool evaluates the entered function at `s = j2πf` for the selected frequency range. Neither plot by itself proves closed-loop stability without the loop definition and open-loop RHP pole count.
+This repository is prepared for GitHub Pages with **Deploy from a branch → main → /(root)**. After editing a demo, run `python build_site.py`, review the resulting site, commit, and push. GitHub Pages publishes the updated files at stable URLs.
+
+For each topic, place the live demo URL in the corresponding Notion lesson with a short explanation and a few slider experiments. The lesson link stays the same after later site updates.
+
+Only original demo code and generated site files belong in this repository. Course PDFs and textbook images are intentionally excluded.
